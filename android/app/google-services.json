@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "23605950736",
+    "project_id": "printguard-rci3d",
+    "storage_bucket": "printguard-rci3d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:23605950736:android:9f30607f071adf8344cd95",
+        "android_client_info": {
+          "package_name": "com.rci3d.printguard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhvNswIp0vHVXwj51IQL3djLpN_dTlyQk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:23605950736:android:836239ab4228409d44cd95",
+        "android_client_info": {
+          "package_name": "com.rci3d.printguard2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhvNswIp0vHVXwj51IQL3djLpN_dTlyQk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
