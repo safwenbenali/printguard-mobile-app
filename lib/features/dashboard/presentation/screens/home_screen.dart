@@ -74,6 +74,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('PrintGuard AI'),
         actions: [
+          IconButton(
+      icon: const Icon(Icons.settings_outlined),
+      onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
+      tooltip: 'Settings',
+    ),
           // Notification bell with badge
           Stack(
             children: [
@@ -265,10 +270,7 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOnline = status?.modelLoaded == true;
-    final lastDetection = status?.lastDetectionTime;
-    final lastStr = lastDetection != null
-        ? DateFormat('MMM d, HH:mm').format(lastDetection)
-        : 'No detections yet';
+    const lastStr = 'N/A';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -342,12 +344,10 @@ class _StatusCard extends StatelessWidget {
               ),
               const SizedBox(width: 24),
               _StatusInfo(
-                label: 'Total today',
-                value: status != null
-                    ? '${status.totalDetections}'
-                    : '—',
-                icon: Icons.radar_rounded,
-              ),
+  label: 'Server version',
+  value: status?.serverVersion ?? '—',
+  icon: Icons.info_outline_rounded,
+),
             ],
           ),
         ],
@@ -513,7 +513,7 @@ class _SystemIndicators extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final modelOk = status?.modelLoaded == true;
-    final camOk = status?.cameraConnected == true;
+
 
     return Row(
       children: [
@@ -531,7 +531,7 @@ class _SystemIndicators extends StatelessWidget {
         const SizedBox(width: 12),
         _Indicator(
           label: 'Camera',
-          online: camOk,
+          online: status?.cameraConnected == true,
           icon: Icons.videocam_rounded,
         ),
       ],

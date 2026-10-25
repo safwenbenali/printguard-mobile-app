@@ -241,7 +241,6 @@ class _BarChart extends StatelessWidget {
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            tooltipBgColor: AppColors.surfaceLight,
             getTooltipItem: (group, _, rod, __) => BarTooltipItem(
               '${rod.toY.toInt()} detection${rod.toY != 1 ? 's' : ''}',
               const TextStyle(color: AppColors.textPrimary, fontSize: 12),

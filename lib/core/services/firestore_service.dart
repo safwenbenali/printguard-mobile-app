@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
 import '../constants/app_constants.dart';
 import '../models/detection_model.dart';
+import '../models/chat_message.dart';
 
 /// ─────────────────────────────────────────────
 ///  Firestore Service — CRUD for detections
@@ -168,4 +169,41 @@ class FirestoreService {
       last7Days: last7,
     );
   }
+  Future<void> saveChatHistory({
+  required String detectionId,
+  required List<ChatMessage> messages,
+}) async {
+  try {
+    await _db
+        .collection('detections')
+        .doc(detectionId)
+        .collection('chat')
+        .add({
+          'messages': messages.map((m) => m.toFirestore()).toList(),
+          'saved_at': FieldValue.serverTimestamp(),
+        });
+  } catch (e) {
+    _log.e('saveChatHistory failed: $e');
+  }
+}
+
+Future<List<ChatMessage>> loadChatHistory(String detectionId) async {
+  try {
+    final snap = await _db
+        .collection('detections')
+        .doc(detectionId)
+        .collection('chat')
+        .orderBy('saved_at', descending: false)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return [];
+    final msgs = snap.docs.first.data()['messages'] as List<dynamic>? ?? [];
+    return msgs
+        .map((m) => ChatMessage.fromFirestore(m as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    _log.e('loadChatHistory failed: $e');
+    return [];
+  }
+}
 }

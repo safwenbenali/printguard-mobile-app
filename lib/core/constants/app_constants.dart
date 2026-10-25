@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+
 class AppColors {
   static const Color primary = Color(0xFF0D47A1);
   static const Color primaryDark = Color(0xFF1A237E);
@@ -24,7 +25,7 @@ class AppStrings {
   static const String appName = 'PrintGuard AI';
   static const String company = 'RCI3D';
   static const String tagline = 'AI-Powered 3D Print Defect Detection';
-  static const List<String> defectClasses = ['spaghetti','warping','under_extrusion','stringing'];
+  static const List<String> defectClasses = ['spaghetti', 'warping', 'under_extrusion', 'stringing'];
   static const String defaultServerUrl = 'http://192.168.1.100:5000';
   static const String detectionsCollection = 'detections';
   static const String usersCollection = 'users';
@@ -45,29 +46,34 @@ class AppRoutes {
   static const String statistics = '/statistics';
   static const String settings = '/settings';
   static const String detectionDetail = '/detection-detail';
+  static const String assistant = '/assistant'; // ← AI Assistant route
 }
 
 class AlertLevel {
   static const String stop = 'STOP';
   static const String notify = 'NOTIFY';
   static const String ok = 'CONTINUE';
+
   static String fromConfidence(double confidence) {
     if (confidence >= 0.80) return stop;
     if (confidence >= 0.50) return notify;
     return ok;
   }
+
+  // Single color() method — handles all three levels
   static Color color(String level) {
     switch (level) {
-      case stop: return AppColors.stop;
+      case stop:   return AppColors.stop;
       case notify: return AppColors.notify;
-      default: return AppColors.ok;
+      default:     return AppColors.ok;
     }
   }
+
   static IconData icon(String level) {
     switch (level) {
-      case stop: return Icons.cancel_rounded;
+      case stop:   return Icons.cancel_rounded;
       case notify: return Icons.warning_rounded;
-      default: return Icons.check_circle_rounded;
+      default:     return Icons.check_circle_rounded;
     }
   }
 }
@@ -75,29 +81,31 @@ class AlertLevel {
 class DefectInfo {
   static IconData icon(String className) {
     switch (className.toLowerCase()) {
-      case 'spaghetti': return Icons.layers_rounded;
-      case 'warping': return Icons.open_with_rounded;
+      case 'spaghetti':      return Icons.layers_rounded;
+      case 'warping':        return Icons.open_with_rounded;
       case 'under_extrusion': return Icons.opacity_rounded;
-      case 'stringing': return Icons.linear_scale_rounded;
-      default: return Icons.warning_amber_rounded;
+      case 'stringing':      return Icons.linear_scale_rounded;
+      default:               return Icons.warning_amber_rounded;
     }
   }
+
   static Color color(String className) {
     switch (className.toLowerCase()) {
-      case 'spaghetti': return const Color(0xFFE53935);
-      case 'warping': return const Color(0xFFFF8F00);
+      case 'spaghetti':      return const Color(0xFFE53935);
+      case 'warping':        return const Color(0xFFFF8F00);
       case 'under_extrusion': return const Color(0xFF1565C0);
-      case 'stringing': return const Color(0xFF6A1B9A);
-      default: return AppColors.textSecondary;
+      case 'stringing':      return const Color(0xFF6A1B9A);
+      default:               return AppColors.textSecondary;
     }
   }
+
   static String description(String className) {
     switch (className.toLowerCase()) {
-      case 'spaghetti': return 'Filament extruded in mid-air, forming a tangled mass.';
-      case 'warping': return 'Print corners lifting from the bed due to thermal stress.';
+      case 'spaghetti':      return 'Filament extruded in mid-air, forming a tangled mass.';
+      case 'warping':        return 'Print corners lifting from the bed due to thermal stress.';
       case 'under_extrusion': return 'Insufficient filament causing gaps or weak structures.';
-      case 'stringing': return 'Thin strands of filament between model sections.';
-      default: return 'Unknown defect type.';
+      case 'stringing':      return 'Thin strands of filament between model sections.';
+      default:               return 'Unknown defect type.';
     }
   }
 }

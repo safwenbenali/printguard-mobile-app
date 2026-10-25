@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/detection_model.dart';
@@ -125,11 +127,8 @@ class DetectionNotifier extends StateNotifier<DetectionState> {
       }
 
       Map<String, dynamic>? response;
-      if (imageInput is List<int>) {
-        response = await api.uploadImageBytes(
-          imageInput as dynamic,
-          filename: 'capture.jpg',
-        );
+      if (imageInput is Uint8List) {
+  response = await api.uploadImageBytes(imageInput);
       } else {
         response = await api.uploadImage(imageInput);
       }

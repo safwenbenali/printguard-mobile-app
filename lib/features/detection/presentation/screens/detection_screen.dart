@@ -1,9 +1,11 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/app_router.dart';
 import '../../../../core/models/detection_model.dart';
 import '../../../../core/services/providers.dart';
 import '../../../../core/utils/widgets.dart';
@@ -120,7 +122,9 @@ class _DetectionScreenState extends ConsumerState<DetectionScreen> {
           if (state.result != null)
             IconButton(
               icon: const Icon(Icons.refresh_rounded),
-              onPressed: () => ref.read(detectionProvider.notifier).reset(),
+              onPressed: () {
+                ref.read(detectionProvider.notifier).reset();
+              },
               tooltip: 'Reset',
             ),
         ],
@@ -150,6 +154,7 @@ class _DetectionScreenState extends ConsumerState<DetectionScreen> {
               // ── Results ──
               if (state.result != null) ...[
                 _ResultView(
+                  key: ValueKey(state.result!.timestamp),
                   record: state.result!,
                   onSave: _saveResult,
                   onNew: () {
@@ -236,7 +241,7 @@ class _CapturePrompt extends StatelessWidget {
                 children: [
                   Icon(Icons.add_a_photo_rounded,
                       color: Colors.white, size: 18),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
                     'Select Image',
                     style: TextStyle(
@@ -265,7 +270,7 @@ class _HowItWorks extends StatelessWidget {
             children: [
               Icon(Icons.info_outline_rounded,
                   color: AppColors.primary, size: 16),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 'Detectable defects',
                 style: TextStyle(
@@ -324,16 +329,69 @@ class _ErrorCard extends StatelessWidget {
   }
 }
 
-class _ResultView extends StatelessWidget {
+// ── FIXED: Stateful _ResultView ──────────────────────────────────
+
+class _ResultView extends ConsumerStatefulWidget {
   final DetectionRecord record;
   final VoidCallback onSave;
   final VoidCallback onNew;
 
   const _ResultView({
+    super.key,
     required this.record,
     required this.onSave,
     required this.onNew,
   });
+
+  @override
+  ConsumerState<_ResultView> createState() => _ResultViewState();
+}
+
+class _ResultViewState extends ConsumerState<_ResultView> {
+  Map<String, String>? _recommendation;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRecommendation();
+  }
+
+  Future<void> _fetchRecommendation() async {
+    if (widget.record.boxes.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final topBox = widget.record.boxes
+          .reduce((a, b) => a.confidence > b.confidence ? a : b);
+
+      final apiService = ref.read(apiServiceProvider);
+      final result = await apiService.getRecommendation(
+        className: topBox.className,
+        confidence: topBox.confidence,
+        imageBase64: widget.record.imageUrl,
+      );
+
+      if (mounted) {
+        setState(() {
+          _recommendation = result;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _recommendation = {
+            'rootCause': 'Could not fetch recommendation',
+            'suggestedFix': 'Please try again later',
+            'urgencyLevel': 'NOTIFY',
+          };
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -341,23 +399,21 @@ class _ResultView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Annotated image ──
-        if (record.imageUrl != null)
+        if (widget.record.imageUrl != null)
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: record.imageUrl!.startsWith('data:')
+            child: widget.record.imageUrl!.startsWith('data:')
                 ? Image.memory(
-                    _base64ToBytes(record.imageUrl!),
+                    _base64ToBytes(widget.record.imageUrl!),
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const _ImagePlaceholder(),
+                    errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
                   )
                 : Image.network(
-                    record.imageUrl!,
+                    widget.record.imageUrl!,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const _ImagePlaceholder(),
+                    errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
                   ),
           )
         else
@@ -370,19 +426,17 @@ class _ResultView extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color:
-                AlertLevel.color(record.alertLevel).withOpacity(0.12),
+            color: AlertLevel.color(widget.record.alertLevel).withOpacity(0.12),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color:
-                  AlertLevel.color(record.alertLevel).withOpacity(0.4),
+              color: AlertLevel.color(widget.record.alertLevel).withOpacity(0.4),
             ),
           ),
           child: Row(
             children: [
               Icon(
-                AlertLevel.icon(record.alertLevel),
-                color: AlertLevel.color(record.alertLevel),
+                AlertLevel.icon(widget.record.alertLevel),
+                color: AlertLevel.color(widget.record.alertLevel),
                 size: 28,
               ),
               const SizedBox(width: 12),
@@ -391,21 +445,21 @@ class _ResultView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      record.alertLevel == AlertLevel.stop
+                      widget.record.alertLevel == AlertLevel.stop
                           ? 'STOP — Critical Defect'
-                          : record.alertLevel == AlertLevel.notify
+                          : widget.record.alertLevel == AlertLevel.notify
                               ? 'WARNING — Defect Detected'
                               : 'OK — Minor or No Defect',
                       style: TextStyle(
-                        color: AlertLevel.color(record.alertLevel),
+                        color: AlertLevel.color(widget.record.alertLevel),
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
                       ),
                     ),
                     Text(
-                      record.alertLevel == AlertLevel.stop
+                      widget.record.alertLevel == AlertLevel.stop
                           ? 'Consider stopping the print'
-                          : record.alertLevel == AlertLevel.notify
+                          : widget.record.alertLevel == AlertLevel.notify
                               ? 'Monitor closely'
                               : 'Print appears healthy',
                       style: const TextStyle(
@@ -421,11 +475,19 @@ class _ResultView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
+        // ── Proactive Recommendation Card ──
+        if (widget.record.boxes.isNotEmpty) ...[
+          if (_isLoading)
+            _buildLoadingCard()
+          else if (_recommendation != null)
+            _buildRecommendationCard(_recommendation!),
+        ],
+
         // ── Detection list ──
-        if (record.boxes.isNotEmpty) ...[
+        if (widget.record.boxes.isNotEmpty) ...[
           const SectionHeader(title: 'DETECTIONS'),
           const SizedBox(height: 10),
-          ...record.boxes.map(
+          ...widget.record.boxes.map(
             (box) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _DetectionItem(box: box),
@@ -449,7 +511,7 @@ class _ResultView extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Confidence: ${record.confidencePercent}',
+                      'Confidence: ${widget.record.confidencePercent}',
                       style: const TextStyle(
                           color: AppColors.textSecondary, fontSize: 12),
                     ),
@@ -466,7 +528,7 @@ class _ResultView extends StatelessWidget {
         Center(
           child: Text(
             DateFormat('MMM d, yyyy — HH:mm:ss')
-                .format(record.timestamp),
+                .format(widget.record.timestamp),
             style: const TextStyle(
               color: AppColors.textHint,
               fontSize: 12,
@@ -480,8 +542,27 @@ class _ResultView extends StatelessWidget {
         Row(
           children: [
             Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.assistant,
+                  arguments: widget.record,
+                ),
+                icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                label: const Text(' Ask AI '),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  minimumSize: const Size(0, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: OutlinedButton.icon(
-                onPressed: onNew,
+                onPressed: widget.onNew,
                 icon: const Icon(Icons.add_a_photo_rounded, size: 18),
                 label: const Text('New Detection'),
                 style: OutlinedButton.styleFrom(
@@ -497,11 +578,15 @@ class _ResultView extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: onSave,
+                onPressed: widget.onSave,
                 icon: const Icon(Icons.save_rounded, size: 18),
                 label: const Text('Save'),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(0, 50),
+                  backgroundColor: AppColors.accentGreen,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -512,13 +597,157 @@ class _ResultView extends StatelessWidget {
     );
   }
 
+  Widget _buildLoadingCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Text(
+            'AI is analyzing this defect…',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecommendationCard(Map<String, String> rec) {
+    final urgency = rec['urgencyLevel']?.toUpperCase() ?? 'NOTIFY';
+    final Color urgencyColor = urgency == 'STOP'
+        ? AppColors.stop
+        : urgency == 'NOTIFY'
+            ? AppColors.notify
+            : AppColors.ok;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.surface,
+            AppColors.surface.withOpacity(0.6),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: urgencyColor.withOpacity(0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                urgency == 'STOP'
+                    ? Icons.error_outline_rounded
+                    : urgency == 'NOTIFY'
+                        ? Icons.warning_amber_rounded
+                        : Icons.check_circle_outline_rounded,
+                color: urgencyColor,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                urgency == 'STOP'
+                    ? 'AI RECOMMENDATION — STOP'
+                    : urgency == 'NOTIFY'
+                        ? 'AI RECOMMENDATION — NOTIFY'
+                        : 'AI RECOMMENDATION — CONTINUE',
+                style: TextStyle(
+                  color: urgencyColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('🔍 ', style: TextStyle(fontSize: 14)),
+              Expanded(
+                child: Text(
+                  rec['rootCause'] ?? 'No root cause available',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('🔧 ', style: TextStyle(fontSize: 14)),
+              Expanded(
+                child: Text(
+                  rec['suggestedFix'] ?? 'No fix available',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(
+                Icons.smart_toy_outlined,
+                color: AppColors.textHint,
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Tap "Ask AI" for more details',
+                style: TextStyle(
+                  color: AppColors.textHint,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Uint8List _base64ToBytes(String dataUri) {
     final base64Str = dataUri.split(',').last;
-    return Uri.parse('data:application/octet-stream;base64,$base64Str')
-        .data!
-        .contentAsBytes();
+    return base64Decode(base64Str);
   }
 }
+
+// ── Detection Item ──────────────────────────────────────────────────
 
 class _DetectionItem extends StatelessWidget {
   final BoundingBox box;
